@@ -10,6 +10,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using Tomighty.Events;
 using Tomighty.Windows.Timer;
+using Tomighty.Windows.Ui;
 
 namespace Tomighty.Windows.Tray
 {
@@ -17,11 +18,13 @@ namespace Tomighty.Windows.Tray
     {
         private readonly NotifyIcon notifyIcon;
         private readonly TimerWindowPresenter timerWindowPresenter;
+        private readonly IUiDispatcher uiDispatcher;
 
-        public TrayIconController(NotifyIcon notifyIcon, TimerWindowPresenter timerWindowPresenter, IEventHub eventHub)
+        public TrayIconController(NotifyIcon notifyIcon, TimerWindowPresenter timerWindowPresenter, IEventHub eventHub, IUiDispatcher uiDispatcher)
         {
             this.notifyIcon = notifyIcon;
             this.timerWindowPresenter = timerWindowPresenter;
+            this.uiDispatcher = uiDispatcher;
 
             notifyIcon.Click += OnNotifyIconClick;
 
@@ -44,12 +47,20 @@ namespace Tomighty.Windows.Tray
 
         private void OnTimerStarted(TimerStarted @event)
         {
-            notifyIcon.Icon = GetIcon(@event.IntervalType);
+            uiDispatcher.Post(() =>
+            {
+                if (notifyIcon == null || notifyIcon.Icon == null && notifyIcon.Container == null) return;
+                notifyIcon.Icon = GetIcon(@event.IntervalType);
+            });
         }
 
         private void OnTimerStopped(TimerStopped @event)
         {
-            notifyIcon.Icon = Properties.Resources.icon_tomato_white;
+            uiDispatcher.Post(() =>
+            {
+                if (notifyIcon == null || notifyIcon.Icon == null && notifyIcon.Container == null) return;
+                notifyIcon.Icon = Properties.Resources.icon_tomato_white;
+            });
         }
 
         private Icon GetIcon(IntervalType intervalType)

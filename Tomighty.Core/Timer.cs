@@ -1,10 +1,3 @@
-﻿//
-//  Tomighty - http://www.tomighty.org
-//
-//  This software is licensed under the Apache License Version 2.0:
-//  http://www.apache.org/licenses/LICENSE-2.0.txt
-//
-
 using System.Timers;
 using Tomighty.Events;
 using SystemTimer = System.Timers.Timer;
@@ -14,94 +7,77 @@ namespace Tomighty
     public class Timer : ITimer
     {
         private const int IntervalInSeconds = 1;
-
+        private readonly object sync = new object();
         private readonly SystemTimer systemTimer = new SystemTimer();
         private readonly IEventHub eventHub;
-
-        // Mutable fields
         private Duration remainingTime = Duration.Zero;
         private IntervalType intervalType;
         private Duration duration;
-        private volatile bool paused;
         private TimerStatus status = TimerStatus.Idle;
 
         public Timer(IEventHub eventHub)
         {
             this.eventHub = eventHub;
-
             systemTimer.Interval = IntervalInSeconds * 1000;
             systemTimer.AutoReset = true;
             systemTimer.Elapsed += SystemTimerOnElapsed;
         }
 
-        public Duration RemainingTime => remainingTime;
+        public Duration RemainingTime { get { lock(sync) return remainingTime; } }
 
         public void Start(Duration duration, IntervalType intervalType)
         {
-            this.duration = duration;
-            this.intervalType = intervalType;
-            paused = false;
-            status = TimerStatus.Running;
-            remainingTime = duration;
-
-            systemTimer.Start();
-
-            eventHub.Publish(new TimerStarted(intervalType, duration, remainingTime));
+            TimerStarted started = null;
+            lock (sync)
+            {
+                if (status != TimerStatus.Idle) return;
+                this.duration = duration;
+                this.intervalType = intervalType;
+                status = TimerStatus.Running;
+                remainingTime = duration;
+                systemTimer.Start();
+                started = new TimerStarted(intervalType, duration, remainingTime);
+            }
+            eventHub.Publish(started);
         }
 
         public void Stop()
         {
-            if (status == TimerStatus.Idle)
-                return;
-
-            systemTimer.Stop();
-            paused = false;
-            status = TimerStatus.Idle;
-
-            eventHub.Publish(new TimerStopped(intervalType, duration, remainingTime));
-
-            remainingTime = Duration.Zero;
+            TimerStopped stopped = null;
+            lock (sync)
+            {
+                if (status == TimerStatus.Idle) return;
+                systemTimer.Stop();
+                status = TimerStatus.Idle;
+                stopped = new TimerStopped(intervalType, duration, remainingTime);
+                remainingTime = Duration.Zero;
+            }
+            eventHub.Publish(stopped);
         }
 
-        public void Pause()
-        {
-            if (status != TimerStatus.Running)
-                return;
-
-            paused = true;
-            status = TimerStatus.Paused;
-            systemTimer.Stop();
-            eventHub.Publish(new TimerPaused(intervalType, duration, remainingTime));
-        }
-
-        public void Resume()
-        {
-            if (status != TimerStatus.Paused)
-                return;
-
-            paused = false;
-            status = TimerStatus.Running;
-            systemTimer.Start();
-            eventHub.Publish(new TimerResumed(intervalType, duration, remainingTime));
-        }
+        public void Pause(){ TimerPaused ev=null; lock(sync){ if(status!=TimerStatus.Running)return; status=TimerStatus.Paused; systemTimer.Stop(); ev=new TimerPaused(intervalType,duration,remainingTime);} eventHub.Publish(ev);} 
+        public void Resume(){ TimerResumed ev=null; lock(sync){ if(status!=TimerStatus.Paused)return; status=TimerStatus.Running; systemTimer.Start(); ev=new TimerResumed(intervalType,duration,remainingTime);} eventHub.Publish(ev);} 
 
         private void DecreaseRemainingTime(int seconds)
         {
-            if (status != TimerStatus.Running || paused)
-                return;
-
-            var nextSeconds = remainingTime.Seconds - seconds;
-            if (nextSeconds < 0)
-                nextSeconds = 0;
-
-            remainingTime = new Duration(nextSeconds);
-
-            eventHub.Publish(new TimeElapsed(intervalType, duration, remainingTime));
-
-            if (remainingTime.Seconds == 0)
+            TimeElapsed elapsed = null; TimerStopped stopped = null;
+            lock (sync)
             {
-                Stop();
+                if (status != TimerStatus.Running) return;
+                var next = remainingTime.Seconds - seconds;
+                if (next < 0) next = 0;
+                remainingTime = new Duration(next);
+                elapsed = new TimeElapsed(intervalType, duration, remainingTime);
+                if (remainingTime.Seconds == 0)
+                {
+                    systemTimer.Stop();
+                    status = TimerStatus.Idle;
+                    stopped = new TimerStopped(intervalType, duration, remainingTime);
+                    remainingTime = Duration.Zero;
+                }
             }
+            eventHub.Publish(elapsed);
+            if (stopped != null) eventHub.Publish(stopped);
         }
 
         private void SystemTimerOnElapsed(object sender, ElapsedEventArgs elapsedEventArgs)
