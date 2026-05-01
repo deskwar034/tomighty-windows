@@ -56,8 +56,6 @@ namespace Tomighty.Windows.Preferences
             this.soundNotifications = new System.Windows.Forms.CheckBox();
             this.toastNotification = new System.Windows.Forms.CheckBox();
             this.label8 = new System.Windows.Forms.Label();
-            this.tabPage3 = new System.Windows.Forms.TabPage();
-            this.autoupdate = new System.Windows.Forms.CheckBox();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.longBreakDurationTextBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.shortBreakDurationTextBox)).BeginInit();
@@ -67,7 +65,6 @@ namespace Tomighty.Windows.Preferences
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
-            this.tabPage3.SuspendLayout();
             this.SuspendLayout();
             // 
             // groupBox1
@@ -288,7 +285,6 @@ namespace Tomighty.Windows.Preferences
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl1.Controls.Add(this.tabPage1);
             this.tabControl1.Controls.Add(this.tabPage2);
-            this.tabControl1.Controls.Add(this.tabPage3);
             this.tabControl1.Location = new System.Drawing.Point(12, 12);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
@@ -349,26 +345,9 @@ namespace Tomighty.Windows.Preferences
             this.label8.TabIndex = 0;
             this.label8.Text = "When the timer finishes:";
             // 
-            // tabPage3
             // 
-            this.tabPage3.Controls.Add(this.autoupdate);
-            this.tabPage3.Location = new System.Drawing.Point(4, 22);
-            this.tabPage3.Name = "tabPage3";
-            this.tabPage3.Padding = new System.Windows.Forms.Padding(10);
-            this.tabPage3.Size = new System.Drawing.Size(255, 229);
-            this.tabPage3.TabIndex = 2;
-            this.tabPage3.Text = "Miscellaneous";
-            this.tabPage3.UseVisualStyleBackColor = true;
             // 
-            // autoupdate
             // 
-            this.autoupdate.AutoSize = true;
-            this.autoupdate.Location = new System.Drawing.Point(14, 14);
-            this.autoupdate.Name = "autoupdate";
-            this.autoupdate.Size = new System.Drawing.Size(228, 17);
-            this.autoupdate.TabIndex = 0;
-            this.autoupdate.Text = "Automatically download and install updates";
-            this.autoupdate.UseVisualStyleBackColor = true;
             // 
             // UserPreferencesForm
             // 
@@ -398,8 +377,6 @@ namespace Tomighty.Windows.Preferences
             this.tabPage1.ResumeLayout(false);
             this.tabPage2.ResumeLayout(false);
             this.tabPage2.PerformLayout();
-            this.tabPage3.ResumeLayout(false);
-            this.tabPage3.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -427,7 +404,5 @@ namespace Tomighty.Windows.Preferences
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.CheckBox toastNotification;
         private System.Windows.Forms.CheckBox soundNotifications;
-        private System.Windows.Forms.TabPage tabPage3;
-        private System.Windows.Forms.CheckBox autoupdate;
     }
 }

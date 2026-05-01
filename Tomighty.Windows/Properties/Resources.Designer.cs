@@ -262,11 +262,6 @@ namespace Tomighty.Windows.Properties {
         ///  &lt;/actions&gt;
         ///  &lt;audio src=&quot;ms-winsound [rest of string was truncated]&quot;;.
         /// </summary>
-        internal static string toast_template_app_updated {
-            get {
-                return ResourceManager.GetString("toast_template_app_updated", resourceCulture);
-            }
-        }
         
         /// <summary>
         ///   Looks up a localized string similar to &lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; ?&gt; 
