@@ -13,15 +13,22 @@ namespace Tomighty
     public class SynchronousEventHub : IEventHub
     {
         private readonly IDictionary<Type, List<Action<object>>> allSubscribers = new Dictionary<Type, List<Action<object>>>();
+        private readonly object syncRoot = new object();
 
         public void Publish(object @event)
         {
-            var eventType = @event.GetType();
+            List<Action<object>> subscribers;
+            lock (syncRoot)
+            {
+                var eventType = @event.GetType();
 
-            if (!allSubscribers.ContainsKey(eventType))
-                return;
+                if (!allSubscribers.ContainsKey(eventType))
+                    return;
 
-            foreach (var subscriber in allSubscribers[eventType])
+                subscribers = new List<Action<object>>(allSubscribers[eventType]);
+            }
+
+            foreach (var subscriber in subscribers)
             {
                 subscriber(@event);
             }
@@ -29,20 +36,23 @@ namespace Tomighty
 
         public void Subscribe<T>(Action<T> eventHandler)
         {
-            List<Action<object>> subscribers;
-            var eventType = typeof(T);
-
-            if (allSubscribers.ContainsKey(eventType))
+            lock (syncRoot)
             {
-                subscribers = allSubscribers[eventType];
-            }
-            else
-            {
-                subscribers = new List<Action<object>>();
-                allSubscribers[eventType] = subscribers;
-            }
+                List<Action<object>> subscribers;
+                var eventType = typeof(T);
 
-            subscribers.Add(e => eventHandler((T) e));
+                if (allSubscribers.ContainsKey(eventType))
+                {
+                    subscribers = allSubscribers[eventType];
+                }
+                else
+                {
+                    subscribers = new List<Action<object>>();
+                    allSubscribers[eventType] = subscribers;
+                }
+
+                subscribers.Add(e => eventHandler((T)e));
+            }
         }
     }
 }

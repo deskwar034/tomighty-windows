@@ -92,25 +92,33 @@ namespace Tomighty
         {
             public async Task StartAsync(LanDiscoverySettings settings, CancellationToken cancellationToken)
             {
-                using (var udp = new UdpClient(new IPEndPoint(IPAddress.Any, settings.DiscoveryPort)))
+                try
                 {
-                    while (!cancellationToken.IsCancellationRequested)
+                    using (var udp = new UdpClient(new IPEndPoint(IPAddress.Any, settings.DiscoveryPort)))
                     {
-                        var receiveTask = udp.ReceiveAsync();
-                        var completed = await Task.WhenAny(receiveTask, Task.Delay(250, cancellationToken));
-                        if (completed != receiveTask) continue;
+                        while (!cancellationToken.IsCancellationRequested)
+                        {
+                            var receiveTask = udp.ReceiveAsync();
+                            var completed = await Task.WhenAny(receiveTask, Task.Delay(250));
+                            if (cancellationToken.IsCancellationRequested)
+                                break;
 
-                        var packet = receiveTask.Result;
-                        var message = Encoding.UTF8.GetString(packet.Buffer).Trim();
-                        if (!string.Equals(message, DiscoverMessage, StringComparison.Ordinal))
-                            continue;
+                            if (completed != receiveTask) continue;
 
-                        var bestIp = ResolveBestLocalIp(packet.RemoteEndPoint.Address);
-                        var response = BuildResponsePayload(settings, bestIp);
-                        try { await udp.SendAsync(response, response.Length, packet.RemoteEndPoint); }
-                        catch (SocketException) { }
+                            var packet = receiveTask.Result;
+                            var message = Encoding.UTF8.GetString(packet.Buffer).Trim();
+                            if (!string.Equals(message, DiscoverMessage, StringComparison.Ordinal))
+                                continue;
+
+                            var bestIp = ResolveBestLocalIp(packet.RemoteEndPoint.Address);
+                            var response = BuildResponsePayload(settings, bestIp);
+                            try { await udp.SendAsync(response, response.Length, packet.RemoteEndPoint); }
+                            catch (SocketException) { }
+                        }
                     }
                 }
+                catch (OperationCanceledException) { }
+                catch (ObjectDisposedException) { }
             }
         }
 
@@ -126,25 +134,75 @@ namespace Tomighty
                     udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
 
                     var queryBytes = Encoding.UTF8.GetBytes(DiscoverMessage);
-                    await udp.SendAsync(queryBytes, queryBytes.Length, new IPEndPoint(IPAddress.Broadcast, settings.DiscoveryPort));
+                    foreach (var endpoint in GetBroadcastEndpoints(settings.DiscoveryPort).Distinct())
+                    {
+                        try
+                        {
+                            await udp.SendAsync(queryBytes, queryBytes.Length, endpoint);
+                        }
+                        catch (SocketException)
+                        {
+                        }
+                    }
 
                     var timeout = Task.Delay(settings.DiscoveryTimeoutMs, cancellationToken);
+                    var receiveTask = udp.ReceiveAsync();
                     while (!timeout.IsCompleted && !cancellationToken.IsCancellationRequested)
                     {
-                        var receiveTask = udp.ReceiveAsync();
-                        var completed = await Task.WhenAny(receiveTask, Task.Delay(100, cancellationToken), timeout);
-                        if (completed != receiveTask) continue;
+                        var completed = await Task.WhenAny(receiveTask, timeout);
+                        if (completed != receiveTask) break;
 
                         var parsed = TryParseResponse(receiveTask.Result.Buffer);
-                        if (parsed == null) continue;
-                        if (string.Equals(parsed.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (parsed != null && !string.Equals(parsed.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase))
+                        {
+                            foundHosts[parsed.DeduplicationKey] = parsed;
+                        }
 
-                        foundHosts[parsed.DeduplicationKey] = parsed;
+                        receiveTask = udp.ReceiveAsync();
                     }
                 }
-
                 return foundHosts.Values.ToList();
             }
+            catch (OperationCanceledException)
+            {
+                return foundHosts.Values.ToList();
+            }
+        }
+
+        internal static IEnumerable<IPEndPoint> GetBroadcastEndpoints(int port)
+        {
+            yield return new IPEndPoint(IPAddress.Broadcast, port);
+
+            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces().Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback))
+            {
+                foreach (var ua in nic.GetIPProperties().UnicastAddresses)
+                {
+                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork)
+                        continue;
+
+                    var subnetBroadcast = GetSubnetBroadcast(ua.Address, ua.IPv4Mask);
+                    if (subnetBroadcast != null)
+                        yield return new IPEndPoint(subnetBroadcast, port);
+                }
+            }
+        }
+
+        internal static IPAddress GetSubnetBroadcast(IPAddress address, IPAddress mask)
+        {
+            if (mask == null)
+                return null;
+
+            var addrBytes = address.GetAddressBytes();
+            var maskBytes = mask.GetAddressBytes();
+
+            if (addrBytes.Length != 4 || maskBytes.Length != 4)
+                return null;
+
+            var broadcast = new byte[4];
+            for (var i = 0; i < 4; i++)
+                broadcast[i] = (byte)(addrBytes[i] | ~maskBytes[i]);
+
+            return new IPAddress(broadcast);
         }
 
         [DataContract]
