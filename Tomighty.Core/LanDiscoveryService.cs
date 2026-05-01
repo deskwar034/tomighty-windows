@@ -127,44 +127,49 @@ namespace Tomighty
             public async Task<IReadOnlyCollection<LanDiscoveredHost>> DiscoverAsync(LanDiscoverySettings settings, CancellationToken cancellationToken)
             {
                 var foundHosts = new Dictionary<string, LanDiscoveredHost>(StringComparer.OrdinalIgnoreCase);
-                using (var udp = new UdpClient())
+
+                try
                 {
-                    udp.EnableBroadcast = true;
-                    udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                    udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
-
-                    var queryBytes = Encoding.UTF8.GetBytes(DiscoverMessage);
-                    foreach (var endpoint in GetBroadcastEndpoints(settings.DiscoveryPort).Distinct())
+                    using (var udp = new UdpClient())
                     {
-                        try
-                        {
-                            await udp.SendAsync(queryBytes, queryBytes.Length, endpoint);
-                        }
-                        catch (SocketException)
-                        {
-                        }
-                    }
+                        udp.EnableBroadcast = true;
+                        udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                        udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
 
-                    var timeout = Task.Delay(settings.DiscoveryTimeoutMs, cancellationToken);
-                    var receiveTask = udp.ReceiveAsync();
-                    while (!timeout.IsCompleted && !cancellationToken.IsCancellationRequested)
-                    {
-                        var completed = await Task.WhenAny(receiveTask, timeout);
-                        if (completed != receiveTask) break;
-
-                        var parsed = TryParseResponse(receiveTask.Result.Buffer);
-                        if (parsed != null && !string.Equals(parsed.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase))
+                        var queryBytes = Encoding.UTF8.GetBytes(DiscoverMessage);
+                        foreach (var endpoint in GetBroadcastEndpoints(settings.DiscoveryPort).Distinct())
                         {
-                            foundHosts[parsed.DeduplicationKey] = parsed;
+                            try
+                            {
+                                await udp.SendAsync(queryBytes, queryBytes.Length, endpoint);
+                            }
+                            catch (SocketException)
+                            {
+                            }
                         }
 
-                        receiveTask = udp.ReceiveAsync();
+                        var timeout = Task.Delay(settings.DiscoveryTimeoutMs, cancellationToken);
+                        var receiveTask = udp.ReceiveAsync();
+                        while (!timeout.IsCompleted && !cancellationToken.IsCancellationRequested)
+                        {
+                            var completed = await Task.WhenAny(receiveTask, timeout);
+                            if (completed != receiveTask) break;
+
+                            var parsed = TryParseResponse(receiveTask.Result.Buffer);
+                            if (parsed != null && !string.Equals(parsed.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase))
+                            {
+                                foundHosts[parsed.DeduplicationKey] = parsed;
+                            }
+
+                            receiveTask = udp.ReceiveAsync();
+                        }
                     }
                 }
-                return foundHosts.Values.ToList();
-            }
-            catch (OperationCanceledException)
-            {
+                catch (OperationCanceledException)
+                {
+                    return foundHosts.Values.ToList();
+                }
+
                 return foundHosts.Values.ToList();
             }
         }

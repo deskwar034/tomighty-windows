@@ -73,12 +73,37 @@ namespace Tomighty.Update.Swap
             }
 
             Thread.Sleep(500);
+            var stagedDir = Path.Combine(Path.GetTempPath(), "tomighty-swap-stage-" + Guid.NewGuid().ToString("N"));
+            var backupDir = Path.Combine(Path.GetTempPath(), "tomighty-swap-backup-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(stagedDir);
+            Directory.CreateDirectory(backupDir);
 
-            logger.Info($"Deleting directory contents: {targetDir}");
-            DeleteDirectoryContents(targetDir);
+            try
+            {
+                logger.Info($"Extracting files from `{sourcePackage}` into `{stagedDir}`");
+                ZipFile.ExtractToDirectory(sourcePackage, stagedDir);
+                ValidateExtractedInstallation(stagedDir, exePath);
 
-            logger.Info($"Extracting files from `{sourcePackage}` into `{targetDir}`");
-            ZipFile.ExtractToDirectory(sourcePackage, targetDir);
+                logger.Info($"Backing up current installation from `{targetDir}`");
+                MoveDirectoryContents(targetDir, backupDir);
+
+                try
+                {
+                    logger.Info($"Applying extracted files into `{targetDir}`");
+                    MoveDirectoryContents(stagedDir, targetDir);
+                }
+                catch (Exception applyEx)
+                {
+                    logger.Error($"Failed to apply update, attempting rollback: {applyEx.Message}");
+                    TryRestoreBackup(backupDir, targetDir);
+                    throw;
+                }
+            }
+            finally
+            {
+                TryDeleteDirectory(stagedDir);
+                TryDeleteDirectory(backupDir);
+            }
 
             if (restart)
             {
@@ -91,16 +116,64 @@ namespace Tomighty.Update.Swap
             logger.Info($"Done");
         }
 
-        private static void DeleteDirectoryContents(string targetDir)
+        private static void MoveDirectoryContents(string fromDir, string toDir)
         {
-            foreach (var file in Directory.GetFiles(targetDir))
+            foreach (var file in Directory.GetFiles(fromDir))
             {
-                File.Delete(file);
+                var targetFile = Path.Combine(toDir, Path.GetFileName(file));
+                if (File.Exists(targetFile))
+                    File.Delete(targetFile);
+                File.Move(file, targetFile);
             }
 
-            foreach (var dir in Directory.GetDirectories(targetDir))
+            foreach (var dir in Directory.GetDirectories(fromDir))
             {
-                new DirectoryInfo(dir).Delete(true);
+                var targetPath = Path.Combine(toDir, Path.GetFileName(dir));
+                if (Directory.Exists(targetPath))
+                    Directory.Delete(targetPath, true);
+                Directory.Move(dir, targetPath);
+            }
+        }
+
+        private static void ValidateExtractedInstallation(string stagedDir, string exePath)
+        {
+            var expectedExeName = Path.GetFileName(exePath);
+            var expectedExeInRoot = Path.Combine(stagedDir, expectedExeName);
+            var matchingFiles = Directory.GetFiles(stagedDir, expectedExeName, SearchOption.AllDirectories);
+
+            if (!File.Exists(expectedExeInRoot) && matchingFiles.Length == 0)
+            {
+                throw new InvalidOperationException($"Invalid update package: `{expectedExeName}` not found in extracted files.");
+            }
+        }
+
+        private static void TryRestoreBackup(string backupDir, string targetDir)
+        {
+            try
+            {
+                var failedDir = targetDir + ".failed-" + Guid.NewGuid().ToString("N");
+                Directory.CreateDirectory(failedDir);
+                MoveDirectoryContents(targetDir, failedDir);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"Failed to move partial target files before rollback: {ex.Message}");
+            }
+
+            MoveDirectoryContents(backupDir, targetDir);
+            logger.Info("Rollback completed");
+        }
+
+        private static void TryDeleteDirectory(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                    Directory.Delete(path, true);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"Failed to delete temporary directory `{path}`: {ex.Message}");
             }
         }
 

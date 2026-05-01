@@ -13,9 +13,16 @@ namespace Tomighty.Windows
     public partial class ErrorReportWindow : Form
     {
         public ErrorReportWindow(Exception exception)
+            : this(exception == null ? null : exception.ToString())
+        {
+        }
+
+        public ErrorReportWindow(string errorText)
         {
             InitializeComponent();
-            errorDescription.Text = exception.ToString();
+            errorDescription.Text = string.IsNullOrWhiteSpace(errorText)
+                ? "Unknown unhandled error."
+                : errorText;
         }
 
         private void ErrorReportWindow_FormClosed(object sender, FormClosedEventArgs e)
@@ -44,10 +51,14 @@ namespace Tomighty.Windows
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             var task = client.PostAsync(URLs.ErrorReport, content);
 
-            task.Wait();
-
-            if (task.Exception != null)
-                throw new Exception("Failed to send error report", task.Exception);
+            try
+            {
+                task.Wait();
+            }
+            catch (AggregateException ex)
+            {
+                throw new Exception("Failed to send error report", ex.GetBaseException());
+            }
         }
 
         private static string ToJson(ReportData data)
