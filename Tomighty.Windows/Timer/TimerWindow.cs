@@ -21,10 +21,12 @@ namespace Tomighty.Windows.Timer
 
         private ColorScheme currentColorScheme;
         private Action currentTimerAction;
+        private Action currentSecondaryTimerAction;
 
         private readonly Action<string> UpdateTimeDisplayDelegate;
         private readonly Action<string> UpdateTitleDelegate;
         private readonly Action<string, Action> UpdateTimerButtonTextDelegate;
+        private readonly Action<string, Action, string, Action> UpdateTimerButtonsDelegate;
 
         public TimerWindow()
         {
@@ -41,6 +43,13 @@ namespace Tomighty.Windows.Timer
             UpdateTimeDisplayDelegate = (text) => timeLabel.Text = text;
             UpdateTitleDelegate = (text) => titleLabel.Text = text;
             UpdateTimerButtonTextDelegate = (text, action) => timerButton.Text = text;
+            UpdateTimerButtonsDelegate = (mainText, mainAction, secondaryText, secondaryAction) =>
+            {
+                timerButton.Width = 74;
+                timerButton.Text = mainText;
+                secondaryTimerButton.Text = secondaryText;
+                secondaryTimerButton.Visible = true;
+            };
         }
 
         public Button PinButton => pinButton;
@@ -57,11 +66,24 @@ namespace Tomighty.Windows.Timer
         public void SetTimerAction(string text, Action action)
         {
             currentTimerAction = action;
+            secondaryTimerButton.Visible = false;
+            timerButton.Width = 153;
 
             if (IsHandleCreated)
                 timerButton.BeginInvoke(UpdateTimerButtonTextDelegate, text, action);
             else
                 UpdateTimerButtonTextDelegate(text, action);
+        }
+
+        public void SetTimerActions(string mainText, Action mainAction, string secondaryText, Action secondaryAction)
+        {
+            currentTimerAction = mainAction;
+            currentSecondaryTimerAction = secondaryAction;
+
+            if (IsHandleCreated)
+                timerButton.BeginInvoke(UpdateTimerButtonsDelegate, mainText, mainAction, secondaryText, secondaryAction);
+            else
+                UpdateTimerButtonsDelegate(mainText, mainAction, secondaryText, secondaryAction);
         }
 
         public void UpdateTimeDisplay(string text)
@@ -134,6 +156,11 @@ namespace Tomighty.Windows.Timer
         private void OnTimerButtonClick(object sender, EventArgs e)
         {
             currentTimerAction?.Invoke();
+        }
+
+        private void OnSecondaryTimerButtonClick(object sender, EventArgs e)
+        {
+            currentSecondaryTimerAction?.Invoke();
         }
         
         public ColorScheme CreateColorScheme(Color color)

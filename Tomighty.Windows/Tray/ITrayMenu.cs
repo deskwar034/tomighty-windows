@@ -19,6 +19,8 @@ namespace Tomighty.Windows.Tray
         void OnStartPomodoroClick(EventHandler handler);
         void OnStartLongBreakClick(EventHandler handler);
         void OnStartShortBreakClick(EventHandler handler);
+        void OnPauseTimerClick(EventHandler handler);
+        void OnResumeTimerClick(EventHandler handler);
         void OnStopTimerClick(EventHandler handler);
         void OnResetPomodoroCountClick(EventHandler handler);
         void OnExitClick(EventHandler handler);

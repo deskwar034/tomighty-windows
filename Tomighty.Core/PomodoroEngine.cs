@@ -54,6 +54,16 @@ namespace Tomighty
             timer.Stop();
         }
 
+        public void PauseTimer()
+        {
+            timer.Pause();
+        }
+
+        public void ResumeTimer()
+        {
+            timer.Resume();
+        }
+
         private void OnTimerStopped(TimerStopped timerStopped)
         {
             if (timerStopped.IntervalType == IntervalType.Pomodoro && timerStopped.IsIntervalCompleted)

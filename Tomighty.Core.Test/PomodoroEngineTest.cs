@@ -56,6 +56,20 @@ namespace Tomighty.Test
         }
 
         [Test]
+        public void Pause_the_timer()
+        {
+            engine.PauseTimer();
+            timer.Received().Pause();
+        }
+
+        [Test]
+        public void Resume_the_timer()
+        {
+            engine.ResumeTimer();
+            timer.Received().Resume();
+        }
+
+        [Test]
         public void Publish_PomodoroCompleted_event_when_timer_stops_with_zero_remaining_time()
         {
             var remainingTime = Duration.Zero;
@@ -87,6 +101,18 @@ namespace Tomighty.Test
             var duration = Duration.InMinutes(25);
 
             eventHub.Publish(new TimerStopped(IntervalType.ShortBreak, duration, remainingTime));
+
+            var pomodoroCompletedEvents = eventHub.PublishedEvents<PomodoroCompleted>();
+            Assert.AreEqual(0, pomodoroCompletedEvents.Count());
+        }
+
+        [Test]
+        public void Do_not_publish_PomodoroCompleted_event_when_timer_is_paused()
+        {
+            var remainingTime = Duration.InMinutes(10);
+            var duration = Duration.InMinutes(25);
+
+            eventHub.Publish(new TimerPaused(IntervalType.Pomodoro, duration, remainingTime));
 
             var pomodoroCompletedEvents = eventHub.PublishedEvents<PomodoroCompleted>();
             Assert.AreEqual(0, pomodoroCompletedEvents.Count());

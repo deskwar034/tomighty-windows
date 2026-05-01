@@ -16,6 +16,8 @@ namespace Tomighty.Windows.Tray
         private readonly ContextMenuStrip contextMenu;
         private readonly ToolStripMenuItem remainingTimeItem;
         private readonly ToolStripMenuItem stopTimerItem;
+        private readonly ToolStripMenuItem pauseTimerItem;
+        private readonly ToolStripMenuItem resumeTimerItem;
         private readonly ToolStripMenuItem pomodoroCountItem;
         private readonly ToolStripMenuItem resetPomodoroCountItem;
         private readonly ToolStripMenuItem startPomodoroItem;
@@ -32,6 +34,8 @@ namespace Tomighty.Windows.Tray
             remainingTimeItem.Font = new Font(remainingTimeItem.Font, FontStyle.Bold);
 
             stopTimerItem = new ToolStripMenuItem("Stop", Properties.Resources.image_stop);
+            pauseTimerItem = new ToolStripMenuItem("Pause");
+            resumeTimerItem = new ToolStripMenuItem("Resume");
 
             pomodoroCountItem = new ToolStripMenuItem();
             pomodoroCountItem.Enabled = false;
@@ -50,6 +54,8 @@ namespace Tomighty.Windows.Tray
             contextMenu = new ContextMenuStrip();
             contextMenu.Items.Add(remainingTimeItem);
             contextMenu.Items.Add(stopTimerItem);
+            contextMenu.Items.Add(pauseTimerItem);
+            contextMenu.Items.Add(resumeTimerItem);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(pomodoroCountItem);
             contextMenu.Items.Add(resetPomodoroCountItem);
@@ -69,6 +75,8 @@ namespace Tomighty.Windows.Tray
         public void OnStartPomodoroClick(EventHandler handler) => startPomodoroItem.Click += handler;
         public void OnStartLongBreakClick(EventHandler handler) => startLongBreakItem.Click += handler;
         public void OnStartShortBreakClick(EventHandler handler) => startShortBreakItem.Click += handler;
+        public void OnPauseTimerClick(EventHandler handler) => pauseTimerItem.Click += handler;
+        public void OnResumeTimerClick(EventHandler handler) => resumeTimerItem.Click += handler;
         public void OnStopTimerClick(EventHandler handler) => stopTimerItem.Click += handler;
         public void OnResetPomodoroCountClick(EventHandler handler) => resetPomodoroCountItem.Click += handler;
         public void OnAboutClick(EventHandler handler) => aboutItem.Click += handler;
@@ -80,6 +88,8 @@ namespace Tomighty.Windows.Tray
         public void EnableStartPomodoroItem(bool enable) => startPomodoroItem.Enabled = enable;
         public void EnableStartShortBreakItem(bool enable) => startShortBreakItem.Enabled = enable;
         public void EnableStartLongBreakItem(bool enable) => startLongBreakItem.Enabled = enable;
+        public void EnablePauseTimerItem(bool enable) => pauseTimerItem.Enabled = enable;
+        public void EnableResumeTimerItem(bool enable) => resumeTimerItem.Enabled = enable;
         public void EnableStopTimerItem(bool enable) => stopTimerItem.Enabled = enable;
         public void EnableResetPomodoroCountItem(bool enable) => resetPomodoroCountItem.Enabled = enable;
 
