@@ -52,6 +52,8 @@
     <Compile Include="PomodoroEngineTest.cs" />
     <Compile Include="RemoteTimerSyncServiceTest.cs" />
     <Compile Include="LanDiscoveryServiceTest.cs" />
+    <Compile Include="TimerTest.cs" />
+    <Compile Include="SynchronousEventHubTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

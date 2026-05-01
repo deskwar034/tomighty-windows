@@ -22,6 +22,8 @@ namespace Tomighty
         private Duration remainingTime = Duration.Zero;
         private IntervalType intervalType;
         private Duration duration;
+        private volatile bool paused;
+        private TimerStatus status = TimerStatus.Idle;
 
         public Timer(IEventHub eventHub)
         {
@@ -38,7 +40,8 @@ namespace Tomighty
         {
             this.duration = duration;
             this.intervalType = intervalType;
-
+            paused = false;
+            status = TimerStatus.Running;
             remainingTime = duration;
 
             systemTimer.Start();
@@ -48,7 +51,12 @@ namespace Tomighty
 
         public void Stop()
         {
+            if (status == TimerStatus.Idle)
+                return;
+
             systemTimer.Stop();
+            paused = false;
+            status = TimerStatus.Idle;
 
             eventHub.Publish(new TimerStopped(intervalType, duration, remainingTime));
 
@@ -57,18 +65,31 @@ namespace Tomighty
 
         public void Pause()
         {
+            if (status != TimerStatus.Running)
+                return;
+
+            paused = true;
+            status = TimerStatus.Paused;
             systemTimer.Stop();
             eventHub.Publish(new TimerPaused(intervalType, duration, remainingTime));
         }
 
         public void Resume()
         {
+            if (status != TimerStatus.Paused)
+                return;
+
+            paused = false;
+            status = TimerStatus.Running;
             systemTimer.Start();
             eventHub.Publish(new TimerResumed(intervalType, duration, remainingTime));
         }
 
         private void DecreaseRemainingTime(int seconds)
         {
+            if (status != TimerStatus.Running || paused)
+                return;
+
             remainingTime = remainingTime.AddSeconds(-seconds);
 
             eventHub.Publish(new TimeElapsed(intervalType, duration, remainingTime));
