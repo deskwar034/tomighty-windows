@@ -27,6 +27,17 @@ namespace Tomighty
             Client = new UdpLanDiscoveryClient();
         }
 
+        internal static void ValidateSettings(LanDiscoverySettings settings)
+        {
+            if (settings == null) throw new ArgumentNullException("settings");
+            if (settings.DiscoveryPort < 1 || settings.DiscoveryPort > 65535)
+                throw new ArgumentOutOfRangeException("settings.DiscoveryPort", "DiscoveryPort must be between 1 and 65535.");
+            if (settings.ApiPort < 1 || settings.ApiPort > 65535)
+                throw new ArgumentOutOfRangeException("settings.ApiPort", "ApiPort must be between 1 and 65535.");
+            if (settings.DiscoveryTimeoutMs < 0)
+                throw new ArgumentOutOfRangeException("settings.DiscoveryTimeoutMs", "DiscoveryTimeoutMs must be greater than or equal to 0.");
+        }
+
         internal static LanDiscoveredHost TryParseResponse(byte[] payload)
         {
             try
@@ -35,8 +46,12 @@ namespace Tomighty
                 {
                     var serializer = new DataContractJsonSerializer(typeof(LanDiscoveryResponse));
                     var response = serializer.ReadObject(stream) as LanDiscoveryResponse;
-                    if (response == null || response.Protocol != DiscoveryProtocol || string.IsNullOrWhiteSpace(response.Host) || response.ApiPort <= 0)
-                        return null;
+                    if (response == null || response.Protocol != DiscoveryProtocol || string.IsNullOrWhiteSpace(response.Host)) return null;
+                    if (response.ApiPort < 1 || response.ApiPort > 65535) return null;
+                    if (response.DiscoveryPort != 0 && (response.DiscoveryPort < 1 || response.DiscoveryPort > 65535)) return null;
+                    if (!string.IsNullOrWhiteSpace(response.SyncMode) && !string.Equals(response.SyncMode, SyncMode.LanHost.ToString(), StringComparison.OrdinalIgnoreCase)) return null;
+                    IPAddress ip;
+                    if (!IPAddress.TryParse(response.Host, out ip) && response.Host.IndexOf(' ') >= 0) return null;
                     return response.ToModel();
                 }
             }
@@ -48,6 +63,7 @@ namespace Tomighty
 
         internal static byte[] BuildResponsePayload(LanDiscoverySettings settings, IPAddress bestIp)
         {
+            ValidateSettings(settings);
             var response = new LanDiscoveryResponse
             {
                 Protocol = DiscoveryProtocol,
@@ -70,14 +86,21 @@ namespace Tomighty
 
         internal static IPAddress ResolveBestLocalIp(IPAddress fallback)
         {
-            var ips = NetworkInterface.GetAllNetworkInterfaces()
-                .Where(nic => nic.OperationalStatus == OperationalStatus.Up)
-                .SelectMany(nic => nic.GetIPProperties().UnicastAddresses)
-                .Select(a => a.Address)
-                .Where(a => a.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a));
+            try
+            {
+                var ips = NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(nic => nic.OperationalStatus == OperationalStatus.Up)
+                    .SelectMany(nic => nic.GetIPProperties().UnicastAddresses)
+                    .Select(a => a.Address)
+                    .Where(a => a.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a));
 
-            var privateIp = ips.FirstOrDefault(IsPreferredPrivateIpv4);
-            return privateIp ?? ips.FirstOrDefault() ?? fallback;
+                var privateIp = ips.FirstOrDefault(IsPreferredPrivateIpv4);
+                return privateIp ?? ips.FirstOrDefault() ?? fallback;
+            }
+            catch
+            {
+                return fallback;
+            }
         }
 
         private static bool IsPreferredPrivateIpv4(IPAddress address)
@@ -92,23 +115,32 @@ namespace Tomighty
         {
             public async Task StartAsync(LanDiscoverySettings settings, CancellationToken cancellationToken)
             {
+                ValidateSettings(settings);
                 try
                 {
                     using (var udp = new UdpClient(new IPEndPoint(IPAddress.Any, settings.DiscoveryPort)))
                     {
                         while (!cancellationToken.IsCancellationRequested)
                         {
-                            var receiveTask = udp.ReceiveAsync();
-                            var completed = await Task.WhenAny(receiveTask, Task.Delay(250));
-                            if (cancellationToken.IsCancellationRequested)
-                                break;
-
-                            if (completed != receiveTask) continue;
-
-                            var packet = receiveTask.Result;
-                            var message = Encoding.UTF8.GetString(packet.Buffer).Trim();
-                            if (!string.Equals(message, DiscoverMessage, StringComparison.Ordinal))
+                            UdpReceiveResult packet;
+                            try
+                            {
+                                var receiveTask = udp.ReceiveAsync();
+                                var completed = await Task.WhenAny(receiveTask, Task.Delay(250));
+                                if (cancellationToken.IsCancellationRequested) break;
+                                if (completed != receiveTask) continue;
+                                packet = receiveTask.Result;
+                            }
+                            catch (OperationCanceledException) { break; }
+                            catch (ObjectDisposedException) { break; }
+                            catch (SocketException)
+                            {
+                                if (cancellationToken.IsCancellationRequested) break;
                                 continue;
+                            }
+
+                            var message = Encoding.UTF8.GetString(packet.Buffer).Trim();
+                            if (!string.Equals(message, DiscoverMessage, StringComparison.Ordinal)) continue;
 
                             var bestIp = ResolveBestLocalIp(packet.RemoteEndPoint.Address);
                             var response = BuildResponsePayload(settings, bestIp);
@@ -126,6 +158,7 @@ namespace Tomighty
         {
             public async Task<IReadOnlyCollection<LanDiscoveredHost>> DiscoverAsync(LanDiscoverySettings settings, CancellationToken cancellationToken)
             {
+                ValidateSettings(settings);
                 var foundHosts = new Dictionary<string, LanDiscoveredHost>(StringComparer.OrdinalIgnoreCase);
 
                 try
@@ -139,13 +172,8 @@ namespace Tomighty
                         var queryBytes = Encoding.UTF8.GetBytes(DiscoverMessage);
                         foreach (var endpoint in GetBroadcastEndpoints(settings.DiscoveryPort).Distinct())
                         {
-                            try
-                            {
-                                await udp.SendAsync(queryBytes, queryBytes.Length, endpoint);
-                            }
-                            catch (SocketException)
-                            {
-                            }
+                            try { await udp.SendAsync(queryBytes, queryBytes.Length, endpoint); }
+                            catch (SocketException) { }
                         }
 
                         var timeout = Task.Delay(settings.DiscoveryTimeoutMs, cancellationToken);
@@ -155,17 +183,28 @@ namespace Tomighty
                             var completed = await Task.WhenAny(receiveTask, timeout);
                             if (completed != receiveTask) break;
 
-                            var parsed = TryParseResponse(receiveTask.Result.Buffer);
-                            if (parsed != null && !string.Equals(parsed.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase))
+                            try
                             {
-                                foundHosts[parsed.DeduplicationKey] = parsed;
+                                var parsed = TryParseResponse(receiveTask.Result.Buffer);
+                                if (parsed != null && !string.Equals(parsed.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase))
+                                    foundHosts[parsed.DeduplicationKey] = parsed;
                             }
+                            catch (ObjectDisposedException) { break; }
+                            catch (SocketException) { break; }
 
                             receiveTask = udp.ReceiveAsync();
                         }
                     }
                 }
                 catch (OperationCanceledException)
+                {
+                    return foundHosts.Values.ToList();
+                }
+                catch (ObjectDisposedException)
+                {
+                    return foundHosts.Values.ToList();
+                }
+                catch (SocketException)
                 {
                     return foundHosts.Values.ToList();
                 }
@@ -177,36 +216,39 @@ namespace Tomighty
         internal static IEnumerable<IPEndPoint> GetBroadcastEndpoints(int port)
         {
             yield return new IPEndPoint(IPAddress.Broadcast, port);
-
-            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces().Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback))
+            NetworkInterface[] interfaces;
+            try
             {
-                foreach (var ua in nic.GetIPProperties().UnicastAddresses)
-                {
-                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork)
-                        continue;
+                interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            }
+            catch (NetworkInformationException) { yield break; }
+            catch (SocketException) { yield break; }
 
+            foreach (var nic in interfaces)
+            {
+                if (nic.OperationalStatus != OperationalStatus.Up || nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                UnicastIPAddressInformationCollection addrs;
+                try { addrs = nic.GetIPProperties().UnicastAddresses; }
+                catch (NetworkInformationException) { continue; }
+                catch (SocketException) { continue; }
+
+                foreach (var ua in addrs)
+                {
+                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
                     var subnetBroadcast = GetSubnetBroadcast(ua.Address, ua.IPv4Mask);
-                    if (subnetBroadcast != null)
-                        yield return new IPEndPoint(subnetBroadcast, port);
+                    if (subnetBroadcast != null) yield return new IPEndPoint(subnetBroadcast, port);
                 }
             }
         }
 
         internal static IPAddress GetSubnetBroadcast(IPAddress address, IPAddress mask)
         {
-            if (mask == null)
-                return null;
-
+            if (mask == null) return null;
             var addrBytes = address.GetAddressBytes();
             var maskBytes = mask.GetAddressBytes();
-
-            if (addrBytes.Length != 4 || maskBytes.Length != 4)
-                return null;
-
+            if (addrBytes.Length != 4 || maskBytes.Length != 4) return null;
             var broadcast = new byte[4];
-            for (var i = 0; i < 4; i++)
-                broadcast[i] = (byte)(addrBytes[i] | ~maskBytes[i]);
-
+            for (var i = 0; i < 4; i++) broadcast[i] = (byte)(addrBytes[i] | ~maskBytes[i]);
             return new IPAddress(broadcast);
         }
 

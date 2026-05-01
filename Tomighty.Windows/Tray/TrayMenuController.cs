@@ -6,7 +6,6 @@
 //
 
 using System;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using Tomighty.Events;
 
@@ -53,10 +52,10 @@ namespace Tomighty.Windows.Tray
         private void OnStartPomodoroClick(object sender, EventArgs e) => StartTimer(IntervalType.Pomodoro);
         private void OnStartLongBreakClick(object sender, EventArgs e) => StartTimer(IntervalType.LongBreak);
         private void OnStartShortBreakClick(object sender, EventArgs e) => StartTimer(IntervalType.ShortBreak);
-        private void OnStopTimerClick(object sender, EventArgs e) => Task.Run(() => pomodoroEngine.StopTimer());
-        private void OnPauseTimerClick(object sender, EventArgs e) => Task.Run(() => pomodoroEngine.PauseTimer());
-        private void OnResumeTimerClick(object sender, EventArgs e) => Task.Run(() => pomodoroEngine.ResumeTimer());
-        private void OnResetPomodoroCountClick(object sender, EventArgs e) => Task.Run(() => pomodoroEngine.ResetPomodoroCount());
+        private void OnStopTimerClick(object sender, EventArgs e) => pomodoroEngine.StopTimer();
+        private void OnPauseTimerClick(object sender, EventArgs e) => pomodoroEngine.PauseTimer();
+        private void OnResumeTimerClick(object sender, EventArgs e) => pomodoroEngine.ResumeTimer();
+        private void OnResetPomodoroCountClick(object sender, EventArgs e) => pomodoroEngine.ResetPomodoroCount();
 
         private void OnExitClick(object sender, EventArgs e)
         {
@@ -68,9 +67,9 @@ namespace Tomighty.Windows.Tray
             menu.Update(mutator =>
             {
                 mutator.UpdateRemainingTime(@event.RemainingTime.ToTimeString());
-                mutator.EnableStartPomodoroItem(@event.IntervalType != IntervalType.Pomodoro);
-                mutator.EnableStartShortBreakItem(@event.IntervalType != IntervalType.ShortBreak);
-                mutator.EnableStartLongBreakItem(@event.IntervalType != IntervalType.LongBreak);
+                mutator.EnableStartPomodoroItem(false);
+                mutator.EnableStartShortBreakItem(false);
+                mutator.EnableStartLongBreakItem(false);
                 mutator.EnableStopTimerItem(true);
                 mutator.EnablePauseTimerItem(true);
                 mutator.EnableResumeTimerItem(false);
@@ -133,7 +132,7 @@ namespace Tomighty.Windows.Tray
         
         private void StartTimer(IntervalType intervalType)
         {
-            Task.Run(() => pomodoroEngine.StartTimer(intervalType));
+            pomodoroEngine.StartTimer(intervalType);
         }
     }
 }

@@ -8,6 +8,7 @@
 using Tomighty.Events;
 using Tomighty.Windows.Events;
 using Windows.UI.Notifications;
+using Tomighty.Windows.Ui;
 
 namespace Tomighty.Windows.Notifications
 {
@@ -16,11 +17,13 @@ namespace Tomighty.Windows.Notifications
         private readonly IPomodoroEngine pomodoroEngine;
         private readonly IUserPreferences userPreferences;
         private readonly ToastNotifier toastNotifier = ToastNotificationManager.CreateToastNotifier("Tomighty");
+        private readonly IUiDispatcher uiDispatcher;
 
-        public NotificationsPresenter(IPomodoroEngine pomodoroEngine, IUserPreferences userPreferences, IEventHub eventHub)
+        public NotificationsPresenter(IPomodoroEngine pomodoroEngine, IUserPreferences userPreferences, IEventHub eventHub, IUiDispatcher uiDispatcher)
         {
             this.pomodoroEngine = pomodoroEngine;
             this.userPreferences = userPreferences;
+            this.uiDispatcher = uiDispatcher;
             eventHub.Subscribe<TimerStopped>(OnTimerStopped);
             eventHub.Subscribe<FirstRun>(OnFirstRun);
         }
@@ -51,7 +54,7 @@ namespace Tomighty.Windows.Notifications
                 {
                     var timerAction = Toasts.TimerAction.WithArgs[activation.Arguments];
 
-                    pomodoroEngine.StartTimer(timerAction.IntervalType);
+                    uiDispatcher.Post(() => pomodoroEngine.StartTimer(timerAction.IntervalType));
                 }
             }
         }

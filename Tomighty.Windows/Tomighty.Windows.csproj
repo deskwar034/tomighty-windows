@@ -131,6 +131,8 @@
     <Compile Include="Preferences\UserPreferencesForm.Designer.cs">
       <DependentUpon>UserPreferencesForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Ui\IUiDispatcher.cs" />
+    <Compile Include="Ui\WindowsFormsUiDispatcher.cs" />
     <Compile Include="Tray\TrayIconController.cs" />
     <Compile Include="URLs.cs" />
     <Compile Include="Util\Hash.cs" />

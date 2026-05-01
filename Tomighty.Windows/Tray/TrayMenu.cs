@@ -95,14 +95,16 @@ namespace Tomighty.Windows.Tray
 
         public void Update(Action<ITrayMenuMutator> action)
         {
-            if (contextMenu.IsHandleCreated)
+            if (contextMenu.IsDisposed || contextMenu.Disposing || action == null) return;
+
+            if (contextMenu.InvokeRequired)
             {
-                contextMenu.BeginInvoke(action, this);
+                if (contextMenu.IsHandleCreated)
+                    contextMenu.BeginInvoke(action, this);
+                return;
             }
-            else
-            {
-                action(this);
-            }
+
+            action(this);
         }
     }
 }
