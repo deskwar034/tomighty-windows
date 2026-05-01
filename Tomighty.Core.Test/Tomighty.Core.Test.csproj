@@ -50,6 +50,7 @@
     </Compile>
     <Compile Include="FakeEventHub.cs" />
     <Compile Include="PomodoroEngineTest.cs" />
+    <Compile Include="RemoteTimerSyncServiceTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
