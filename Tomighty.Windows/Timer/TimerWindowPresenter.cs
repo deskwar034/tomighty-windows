@@ -28,6 +28,7 @@ namespace Tomighty.Windows.Timer
         private readonly IWindowState breakInterruptedState;
 
         private IWindowState currentState;
+        private Duration lastKnownRemainingTime = Duration.Zero;
         private TimerWindow window;
         private Taskbar _taskbar;
         private bool _isPinned;
@@ -49,6 +50,7 @@ namespace Tomighty.Windows.Timer
             breakInterruptedState = new TimerInterruptedState("Break Interrupted", pomodoroEngine);
 
             currentState = idleState;
+            lastKnownRemainingTime = Duration.Zero;
 
             eventHub.Subscribe<TimerStarted>(OnTimerStarted);
             eventHub.Subscribe<TimeElapsed>(OnTimeElapsed);
@@ -95,59 +97,52 @@ namespace Tomighty.Windows.Timer
 
                 if (shouldCreateWindow)
                 {
-                    currentState.Apply(window, countdownClock.RemainingTime);
+                    currentState.Apply(window, lastKnownRemainingTime);
                 }
             }
         }
 
         private void OnTimerStarted(TimerStarted @event)
         {
-            RunOnUiThread(() => EnterState(GetRunningTimerStateFor(@event.IntervalType), @event.RemainingTime));
+            EnterState(GetRunningTimerStateFor(@event.IntervalType), @event.RemainingTime);
+            ApplyStateToWindow();
         }
 
         private void OnTimerStopped(TimerStopped @event)
         {
-            RunOnUiThread(() =>
+            if (@event.IsIntervalCompleted)
             {
-                if (@event.IsIntervalCompleted)
-                {
-                    EnterState(GetCompletedIntervalStateFor(@event.IntervalType), @event.RemainingTime);
-                }
-                else
-                {
-                    EnterState(GetTimerInterruptedStateFor(@event.IntervalType), @event.RemainingTime);
-                }
-            });
+                EnterState(GetCompletedIntervalStateFor(@event.IntervalType), @event.RemainingTime);
+            }
+            else
+            {
+                EnterState(GetTimerInterruptedStateFor(@event.IntervalType), @event.RemainingTime);
+            }
+            ApplyStateToWindow();
         }
 
         private void OnTimerPaused(TimerPaused @event)
         {
-            RunOnUiThread(() => EnterState(GetPausedTimerStateFor(@event.IntervalType), @event.RemainingTime));
+            EnterState(GetPausedTimerStateFor(@event.IntervalType), @event.RemainingTime);
+            ApplyStateToWindow();
         }
 
         private void OnTimerResumed(TimerResumed @event)
         {
-            RunOnUiThread(() => EnterState(GetRunningTimerStateFor(@event.IntervalType), @event.RemainingTime));
+            EnterState(GetRunningTimerStateFor(@event.IntervalType), @event.RemainingTime);
+            ApplyStateToWindow();
         }
 
         private void OnTimeElapsed(TimeElapsed @event)
         {
-            RunOnUiThread(() =>
-            {
-                if (window != null)
-                {
-                    window.UpdateTimeDisplay(@event.RemainingTime.ToTimeString());
-                }
-            });
+            lastKnownRemainingTime = @event.RemainingTime;
+            RunOnUiThread(() => window.UpdateTimeDisplay(lastKnownRemainingTime.ToTimeString()));
         }
         
         private void EnterState(IWindowState newState, Duration remainingTime)
         {
-            if (newState != currentState)
-            {
-                currentState = newState;
-                currentState.Apply(window, remainingTime);
-            }
+            lastKnownRemainingTime = remainingTime;
+            currentState = newState;
         }
 
         private IWindowState GetRunningTimerStateFor(IntervalType intervalType)
@@ -189,6 +184,11 @@ namespace Tomighty.Windows.Timer
             x = Math.Max(workingArea.Left, Math.Min(x, workingArea.Right - window.Width));
             y = Math.Max(workingArea.Top, Math.Min(y, workingArea.Bottom - window.Height));
             return new Point(x, y);
+        }
+
+        private void ApplyStateToWindow()
+        {
+            RunOnUiThread(() => currentState.Apply(window, lastKnownRemainingTime));
         }
 
         private void RunOnUiThread(Action action)

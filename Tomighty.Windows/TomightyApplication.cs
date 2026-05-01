@@ -12,6 +12,7 @@ using Tomighty.Windows.Notifications;
 using Tomighty.Windows.Preferences;
 using Tomighty.Windows.Timer;
 using Tomighty.Windows.Tray;
+using Tomighty.Windows.Ui;
 
 namespace Tomighty.Windows
 {
@@ -26,11 +27,12 @@ namespace Tomighty.Windows
 
             var trayMenu = new TrayMenu() as ITrayMenu;
             var trayIcon = CreateTrayIcon(trayMenu);
+            var uiDispatcher = new WindowsFormsUiDispatcher(trayMenu.Component);
             var timerWindowPresenter = new TimerWindowPresenter(pomodoroEngine, timer, eventHub);
 
-            new TrayIconController(trayIcon, timerWindowPresenter, eventHub);
+            new TrayIconController(trayIcon, timerWindowPresenter, eventHub, uiDispatcher);
             new TrayMenuController(trayMenu, this, pomodoroEngine, eventHub);
-            new NotificationsPresenter(pomodoroEngine, userPreferences, eventHub);
+            new NotificationsPresenter(pomodoroEngine, userPreferences, eventHub, uiDispatcher);
             new SoundNotificationPlayer(userPreferences, eventHub);
             
 
