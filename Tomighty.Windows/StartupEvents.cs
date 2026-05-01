@@ -16,11 +16,6 @@ namespace Tomighty.Windows
                     eventHub.Publish(new FirstRun());
                 }
 
-                if (Flags.IsOn(AppUpdatedFlag, false))
-                {
-                    Flags.TurnOff(AppUpdatedFlag);
-                    eventHub.Publish(new AppUpdated());
-                }
             });
         }
     }

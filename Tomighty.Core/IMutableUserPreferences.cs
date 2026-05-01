@@ -13,6 +13,5 @@ namespace Tomighty
         new bool ShowToastNotifications { get; set; }
         new bool PlaySoundNotifications { get; set; }
         new int MaxPomodoroCount { get; set; }
-        new bool AutoUpdate { get; set; }
     }
 }

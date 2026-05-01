@@ -1,4 +1,4 @@
-;======================================================
+﻿;======================================================
 ; Includes
 
   !include MUI.nsh
@@ -66,7 +66,6 @@ Section "Tomighty"
     SetOutPath $INSTDIR
     SetOverwrite on
     File "${BUILD_DIR}\Tomighty.Windows.exe"
-    File "${BUILD_DIR}\Tomighty.Update.Swap.exe"
     File "${BUILD_DIR}\Tomighty.Core.dll"
     File "${BUILD_DIR}\Microsoft.Toolkit.Uwp.Notifications.dll"
     File "${BUILD_DIR}\NOTICE.txt"
