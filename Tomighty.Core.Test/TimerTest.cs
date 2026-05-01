@@ -63,6 +63,30 @@ namespace Tomighty
             Assert.AreEqual(1, eventHub.PublishedEvents<TimerStopped>().Count());
         }
 
+
+        [Test]
+        public void StartWhileRunningShouldBeIgnored()
+        {
+            timer.Start(Duration.InMinutes(25), IntervalType.Pomodoro);
+            var initialRemaining = timer.RemainingTime;
+
+            timer.Start(Duration.InMinutes(5), IntervalType.ShortBreak);
+
+            Assert.AreEqual(initialRemaining, timer.RemainingTime);
+            Assert.AreEqual(1, eventHub.PublishedEvents<TimerStarted>().Count());
+        }
+
+        [Test]
+        public void StopShouldBeIdempotent()
+        {
+            timer.Start(Duration.InMinutes(25), IntervalType.Pomodoro);
+
+            timer.Stop();
+            timer.Stop();
+
+            Assert.AreEqual(1, eventHub.PublishedEvents<TimerStopped>().Count());
+        }
+
         private static void InvokeDecreaseRemainingTime(Timer timer, int seconds)
         {
             var method = typeof(Timer).GetMethod("DecreaseRemainingTime", BindingFlags.NonPublic | BindingFlags.Instance);

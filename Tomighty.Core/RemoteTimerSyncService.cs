@@ -23,16 +23,21 @@ namespace Tomighty
 
             if (state.Status == TimerStatus.Running && state.StartedAtUtc.HasValue)
             {
+                var safeDuration = Math.Max(0, state.DurationSeconds);
                 var offset = state.ServerNowUtc - clientUtcNow;
                 var adjustedClientUtcNow = clientUtcNow + offset;
-                var elapsedSeconds = (int)Math.Floor((adjustedClientUtcNow - state.StartedAtUtc.Value).TotalSeconds);
-                var remainingSeconds = Math.Max(0, state.DurationSeconds - Math.Max(0, elapsedSeconds));
-                return new Duration(remainingSeconds);
+                var elapsedTotalSeconds = (adjustedClientUtcNow - state.StartedAtUtc.Value).TotalSeconds;
+                var elapsedSeconds = Math.Max(0d, Math.Floor(elapsedTotalSeconds));
+                var remaining = safeDuration - elapsedSeconds;
+                if (remaining < 0d) remaining = 0d;
+                if (remaining > int.MaxValue) remaining = int.MaxValue;
+                return new Duration((int)remaining);
             }
 
             if (state.Status == TimerStatus.Paused)
             {
-                return new Duration(Math.Max(0, state.RemainingSeconds));
+                var remaining = Math.Max(0, state.RemainingSeconds);
+                return new Duration(remaining);
             }
 
             return Duration.Zero;
