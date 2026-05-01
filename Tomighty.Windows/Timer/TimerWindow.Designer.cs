@@ -40,6 +40,7 @@ namespace Tomighty.Windows.Timer
             this.closeButton = new System.Windows.Forms.Button();
             this.titleLabel = new Tomighty.Windows.Timer.TimerWindow.TransparentLabel();
             this.timerButton = new System.Windows.Forms.Button();
+            this.secondaryTimerButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // timeLabel
@@ -113,6 +114,23 @@ namespace Tomighty.Windows.Timer
             this.timerButton.UseVisualStyleBackColor = false;
             this.timerButton.Click += new System.EventHandler(this.OnTimerButtonClick);
             // 
+            // secondaryTimerButton
+            // 
+            this.secondaryTimerButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.secondaryTimerButton.BackColor = System.Drawing.Color.Silver;
+            this.secondaryTimerButton.FlatAppearance.BorderColor = System.Drawing.Color.DarkGray;
+            this.secondaryTimerButton.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Silver;
+            this.secondaryTimerButton.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
+            this.secondaryTimerButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.secondaryTimerButton.Location = new System.Drawing.Point(91, 98);
+            this.secondaryTimerButton.Name = "secondaryTimerButton";
+            this.secondaryTimerButton.Size = new System.Drawing.Size(74, 28);
+            this.secondaryTimerButton.TabIndex = 5;
+            this.secondaryTimerButton.Text = "Interrupt";
+            this.secondaryTimerButton.UseVisualStyleBackColor = false;
+            this.secondaryTimerButton.Visible = false;
+            this.secondaryTimerButton.Click += new System.EventHandler(this.OnSecondaryTimerButtonClick);
+            // 
             // TimerWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -120,6 +138,7 @@ namespace Tomighty.Windows.Timer
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
             this.ClientSize = new System.Drawing.Size(177, 138);
             this.ControlBox = false;
+            this.Controls.Add(this.secondaryTimerButton);
             this.Controls.Add(this.timerButton);
             this.Controls.Add(this.titleLabel);
             this.Controls.Add(this.closeButton);
@@ -145,5 +164,6 @@ namespace Tomighty.Windows.Timer
         private System.Windows.Forms.Button closeButton;
         private TransparentLabel titleLabel;
         private System.Windows.Forms.Button timerButton;
+        private System.Windows.Forms.Button secondaryTimerButton;
     }
 }

@@ -55,6 +55,18 @@ namespace Tomighty
             remainingTime = Duration.Zero;
         }
 
+        public void Pause()
+        {
+            systemTimer.Stop();
+            eventHub.Publish(new TimerPaused(intervalType, duration, remainingTime));
+        }
+
+        public void Resume()
+        {
+            systemTimer.Start();
+            eventHub.Publish(new TimerResumed(intervalType, duration, remainingTime));
+        }
+
         private void DecreaseRemainingTime(int seconds)
         {
             remainingTime = remainingTime.AddSeconds(-seconds);

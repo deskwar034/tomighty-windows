@@ -10,6 +10,8 @@ namespace Tomighty
     public interface IPomodoroEngine
     {
         void StartTimer(IntervalType intervalType);
+        void PauseTimer();
+        void ResumeTimer();
         void StopTimer();
         void ResetPomodoroCount();
 

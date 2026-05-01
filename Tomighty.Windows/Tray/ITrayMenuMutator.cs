@@ -13,6 +13,8 @@ namespace Tomighty.Windows.Tray
         void EnableStartPomodoroItem(bool enable);
         void EnableStartShortBreakItem(bool enable);
         void EnableStartLongBreakItem(bool enable);
+        void EnablePauseTimerItem(bool enable);
+        void EnableResumeTimerItem(bool enable);
         void EnableStopTimerItem(bool enable);
         void EnableResetPomodoroCountItem(bool enable);
         void UpdatePomodoroCount(int count);

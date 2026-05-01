@@ -27,12 +27,16 @@ namespace Tomighty.Windows.Tray
             menu.OnStartPomodoroClick(OnStartPomodoroClick);
             menu.OnStartLongBreakClick(OnStartLongBreakClick);
             menu.OnStartShortBreakClick(OnStartShortBreakClick);
+            menu.OnPauseTimerClick(OnPauseTimerClick);
+            menu.OnResumeTimerClick(OnResumeTimerClick);
             menu.OnStopTimerClick(OnStopTimerClick);
             menu.OnResetPomodoroCountClick(OnResetPomodoroCountClick);
             menu.OnExitClick(OnExitClick);
 
             eventHub.Subscribe<TimerStarted>(OnTimerStarted);
             eventHub.Subscribe<TimerStopped>(OnTimerStopped);
+            eventHub.Subscribe<TimerPaused>(OnTimerPaused);
+            eventHub.Subscribe<TimerResumed>(OnTimerResumed);
             eventHub.Subscribe<TimeElapsed>(OnTimeElasped);
             eventHub.Subscribe<PomodoroCountChanged>(OnPomodoroCountChanged);
 
@@ -41,6 +45,8 @@ namespace Tomighty.Windows.Tray
                 mutator.UpdateRemainingTime(Duration.Zero.ToTimeString());
                 mutator.UpdatePomodoroCount(0);
                 mutator.EnableStopTimerItem(false);
+                mutator.EnablePauseTimerItem(false);
+                mutator.EnableResumeTimerItem(false);
             });
         }
 
@@ -48,6 +54,8 @@ namespace Tomighty.Windows.Tray
         private void OnStartLongBreakClick(object sender, EventArgs e) => StartTimer(IntervalType.LongBreak);
         private void OnStartShortBreakClick(object sender, EventArgs e) => StartTimer(IntervalType.ShortBreak);
         private void OnStopTimerClick(object sender, EventArgs e) => Task.Run(() => pomodoroEngine.StopTimer());
+        private void OnPauseTimerClick(object sender, EventArgs e) => Task.Run(() => pomodoroEngine.PauseTimer());
+        private void OnResumeTimerClick(object sender, EventArgs e) => Task.Run(() => pomodoroEngine.ResumeTimer());
         private void OnResetPomodoroCountClick(object sender, EventArgs e) => Task.Run(() => pomodoroEngine.ResetPomodoroCount());
 
         private void OnExitClick(object sender, EventArgs e)
@@ -64,6 +72,8 @@ namespace Tomighty.Windows.Tray
                 mutator.EnableStartShortBreakItem(@event.IntervalType != IntervalType.ShortBreak);
                 mutator.EnableStartLongBreakItem(@event.IntervalType != IntervalType.LongBreak);
                 mutator.EnableStopTimerItem(true);
+                mutator.EnablePauseTimerItem(true);
+                mutator.EnableResumeTimerItem(false);
             });
         }
 
@@ -76,6 +86,30 @@ namespace Tomighty.Windows.Tray
                 mutator.EnableStartShortBreakItem(true);
                 mutator.EnableStartLongBreakItem(true);
                 mutator.EnableStopTimerItem(false);
+                mutator.EnablePauseTimerItem(false);
+                mutator.EnableResumeTimerItem(false);
+            });
+        }
+
+        private void OnTimerPaused(TimerPaused @event)
+        {
+            menu.Update(mutator =>
+            {
+                mutator.UpdateRemainingTime(@event.RemainingTime.ToTimeString());
+                mutator.EnablePauseTimerItem(false);
+                mutator.EnableResumeTimerItem(true);
+                mutator.EnableStopTimerItem(true);
+            });
+        }
+
+        private void OnTimerResumed(TimerResumed @event)
+        {
+            menu.Update(mutator =>
+            {
+                mutator.UpdateRemainingTime(@event.RemainingTime.ToTimeString());
+                mutator.EnablePauseTimerItem(true);
+                mutator.EnableResumeTimerItem(false);
+                mutator.EnableStopTimerItem(true);
             });
         }
 
