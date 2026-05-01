@@ -70,5 +70,19 @@ namespace Tomighty
             Assert.AreEqual(0, result.Count);
             Assert.LessOrEqual(stopwatch.ElapsedMilliseconds, 2000);
         }
+
+        [Test]
+        public void DiscoverAsyncShouldReturnPartialResultWhenCancellationTokenIsAlreadyCancelled()
+        {
+            var settings = new LanDiscoverySettings { DiscoveryPort = 5056, DiscoveryTimeoutMs = 5000 };
+            var service = new LanDiscoveryService();
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            var result = service.Client.DiscoverAsync(settings, cts.Token).GetAwaiter().GetResult();
+
+            Assert.IsNotNull(result);
+            Assert.AreEqual(0, result.Count);
+        }
     }
 }
