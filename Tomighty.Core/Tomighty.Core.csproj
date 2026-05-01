@@ -58,6 +58,13 @@
     <Compile Include="Duration.cs" />
     <Compile Include="SynchronousEventHub.cs" />
     <Compile Include="Timer.cs" />
+    <Compile Include="RemoteTimerStateDto.cs" />
+    <Compile Include="IRemoteTimerSyncService.cs" />
+    <Compile Include="ITimerStateDto.cs" />
+    <Compile Include="RemoteTimerSyncService.cs" />
+    <Compile Include="SyncMode.cs" />
+    <Compile Include="TimerStatus.cs" />
+    <Compile Include="TimerSyncStatus.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
