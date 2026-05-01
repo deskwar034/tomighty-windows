@@ -103,7 +103,7 @@ namespace Tomighty.Windows
                 return;
             }
 
-            var latestVersion = lines[0];
+            var latestVersion = lines[0].Trim();
 
             if (latestVersion == GetLastDownloadedVersion())
             {
@@ -119,8 +119,14 @@ namespace Tomighty.Windows
                 return;
             }
 
-            var url = lines[1];
-            var sha256 = lines[2];
+            var url = lines[1].Trim();
+            var sha256 = lines[2].Trim();
+
+            if (string.IsNullOrWhiteSpace(sha256))
+            {
+                logger.Error("Invalid feed file: SHA-256 is empty");
+                return;
+            }
 
             if (await Download(url, sha256))
             {
@@ -159,6 +165,7 @@ namespace Tomighty.Windows
                 if (sha256 != expectedSha256)
                 {
                     logger.Error($"Integrity error: expected hash {expectedSha256} instead of {sha256}");
+                    TryDeleteTempFile(tempFile);
                     return false;
                 }
             }
@@ -173,6 +180,21 @@ namespace Tomighty.Windows
             logger.Info($"New version available at {LatestPackageFile}");
 
             return true;
+        }
+
+        private void TryDeleteTempFile(string tempFile)
+        {
+            try
+            {
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"Failed to cleanup temporary file `{tempFile}`: {ex.Message}");
+            }
         }
 
         private void Update(object sender, EventArgs e)

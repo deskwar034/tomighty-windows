@@ -90,7 +90,11 @@ namespace Tomighty
             if (status != TimerStatus.Running || paused)
                 return;
 
-            remainingTime = remainingTime.AddSeconds(-seconds);
+            var nextSeconds = remainingTime.Seconds - seconds;
+            if (nextSeconds < 0)
+                nextSeconds = 0;
+
+            remainingTime = new Duration(nextSeconds);
 
             eventHub.Publish(new TimeElapsed(intervalType, duration, remainingTime));
 

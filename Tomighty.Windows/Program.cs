@@ -17,7 +17,7 @@ namespace Tomighty.Windows
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            AppDomain.CurrentDomain.UnhandledException += (sender, args) => HandleUnhandledException(args.ExceptionObject as Exception);
+            AppDomain.CurrentDomain.UnhandledException += (sender, args) => HandleUnhandledException(args.ExceptionObject);
             Application.ThreadException += (sender, args) => HandleUnhandledException(args.Exception);
 
             try
@@ -30,9 +30,14 @@ namespace Tomighty.Windows
             }
         }
 
-        private static void HandleUnhandledException(Exception exception)
+        private static void HandleUnhandledException(object exceptionObject)
         {
-            new ErrorReportWindow(exception).Show();
+            var exception = exceptionObject as Exception;
+            var description = exception != null
+                ? exception.ToString()
+                : "Unhandled non-Exception object: " + (exceptionObject ?? "<null>");
+
+            new ErrorReportWindow(description).Show();
         }
     }
 }

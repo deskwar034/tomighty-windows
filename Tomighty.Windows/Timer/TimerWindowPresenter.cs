@@ -102,37 +102,43 @@ namespace Tomighty.Windows.Timer
 
         private void OnTimerStarted(TimerStarted @event)
         {
-            EnterState(GetRunningTimerStateFor(@event.IntervalType), @event.RemainingTime);
+            RunOnUiThread(() => EnterState(GetRunningTimerStateFor(@event.IntervalType), @event.RemainingTime));
         }
 
         private void OnTimerStopped(TimerStopped @event)
         {
-            if (@event.IsIntervalCompleted)
+            RunOnUiThread(() =>
             {
-                EnterState(GetCompletedIntervalStateFor(@event.IntervalType), @event.RemainingTime);
-            }
-            else
-            {
-                EnterState(GetTimerInterruptedStateFor(@event.IntervalType), @event.RemainingTime);
-            }
+                if (@event.IsIntervalCompleted)
+                {
+                    EnterState(GetCompletedIntervalStateFor(@event.IntervalType), @event.RemainingTime);
+                }
+                else
+                {
+                    EnterState(GetTimerInterruptedStateFor(@event.IntervalType), @event.RemainingTime);
+                }
+            });
         }
 
         private void OnTimerPaused(TimerPaused @event)
         {
-            EnterState(GetPausedTimerStateFor(@event.IntervalType), @event.RemainingTime);
+            RunOnUiThread(() => EnterState(GetPausedTimerStateFor(@event.IntervalType), @event.RemainingTime));
         }
 
         private void OnTimerResumed(TimerResumed @event)
         {
-            EnterState(GetRunningTimerStateFor(@event.IntervalType), @event.RemainingTime);
+            RunOnUiThread(() => EnterState(GetRunningTimerStateFor(@event.IntervalType), @event.RemainingTime));
         }
 
         private void OnTimeElapsed(TimeElapsed @event)
         {
-            if (window != null)
+            RunOnUiThread(() =>
             {
-                window.UpdateTimeDisplay(@event.RemainingTime.ToTimeString());
-            }
+                if (window != null)
+                {
+                    window.UpdateTimeDisplay(@event.RemainingTime.ToTimeString());
+                }
+            });
         }
         
         private void EnterState(IWindowState newState, Duration remainingTime)
@@ -177,9 +183,30 @@ namespace Tomighty.Windows.Timer
         private Point GetLocationNearTrayIcon(Point approximateLocation)
         {
             var screen = Screen.FromPoint(approximateLocation);
+            var workingArea = screen.WorkingArea;
             var x = approximateLocation.X - window.Width / 2;
-            var y = screen.Bounds.Height - window.Height - Taskbar.Size.Height - 2;
+            var y = workingArea.Bottom - window.Height - 2;
+            x = Math.Max(workingArea.Left, Math.Min(x, workingArea.Right - window.Width));
+            y = Math.Max(workingArea.Top, Math.Min(y, workingArea.Bottom - window.Height));
             return new Point(x, y);
+        }
+
+        private void RunOnUiThread(Action action)
+        {
+            if (action == null)
+                return;
+
+            var currentWindow = window;
+            if (currentWindow == null || currentWindow.IsDisposed || currentWindow.Disposing)
+                return;
+
+            if (currentWindow.InvokeRequired)
+            {
+                currentWindow.BeginInvoke(action);
+                return;
+            }
+
+            action();
         }
 
         private void OnPinButtonClick(object sender, System.EventArgs e)
